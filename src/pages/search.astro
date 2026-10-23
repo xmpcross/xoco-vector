@@ -1,0 +1,114 @@
+---
+import { getCollection } from "astro:content";
+import SiteFooter from "@/components/SiteFooter.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { siteConfig } from "@/config/site";
+import { authorSlug, formatDate, postHref, visiblePosts } from "@/lib/posts";
+
+const allPosts = visiblePosts(await getCollection("posts"));
+const searchItems = allPosts.map((post) => ({
+  title: post.data.title,
+  excerpt: post.data.excerpt,
+  href: postHref(post),
+  category: post.data.category,
+  author: post.data.author.name,
+  authorHref: `/author/${authorSlug(post.data.author.name)}/`,
+  tags: post.data.tags,
+  date: formatDate(post.data.date),
+}));
+---
+
+<BaseLayout title="Search" description={`Search ${siteConfig.name} articles, guides, and release notes.`} noindex>
+  <SiteHeader posts={allPosts} />
+  <main id="content" class="min-h-screen">
+    <section class="mx-auto layout-wide px-5 pt-12 lg:px-8">
+      <div class="border-b border-border pb-6">
+        <p class="eyebrow">Search</p>
+        <h1 class="mt-2 text-[clamp(2.2rem,6vw,4rem)] font-bold leading-none tracking-tight">Search {siteConfig.name}</h1>
+        <form class="mt-6 max-w-2xl" role="search" aria-label="Article search" action="/search/" method="get">
+          <label class="sr-only" for="search-page-input">Search articles</label>
+          <div class="flex overflow-hidden rounded-md border border-border focus-within:border-accent">
+            <input
+              id="search-page-input"
+              name="q"
+              type="search"
+              class="min-w-0 flex-1 bg-background px-4 py-3 text-base outline-none placeholder:text-muted-foreground"
+              placeholder="Search articles, authors, tags..."
+              autocomplete="off"
+              data-search-page-input
+            />
+            <button type="submit" class="bg-primary px-4 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-85">
+              Search
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="mx-auto layout-wide px-5 pt-8 lg:px-8">
+      <p class="text-sm text-muted-foreground" data-search-page-summary>Type to search {searchItems.length} posts.</p>
+      <div class="mt-6 grid gap-5 md:grid-cols-2" data-search-page-results></div>
+    </section>
+  </main>
+  <SiteFooter />
+
+  <script is:inline type="application/json" id="search-page-data" set:html={JSON.stringify(searchItems)} />
+  <script is:inline>
+    (() => {
+      const searchPageInput = document.querySelector("[data-search-page-input]");
+      const searchPageResults = document.querySelector("[data-search-page-results]");
+      const searchPageSummary = document.querySelector("[data-search-page-summary]");
+      const searchPageData = JSON.parse(document.getElementById("search-page-data")?.textContent || "[]");
+
+      const escapeHtml = (value) =>
+        String(value).replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[character]);
+
+      const matchesQuery = (item, query) =>
+        [item.title, item.excerpt, item.category, item.author, ...(item.tags || [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      const renderSearchPageResults = () => {
+        if (!searchPageInput || !searchPageResults || !searchPageSummary) return;
+
+        const query = searchPageInput.value.trim().toLowerCase();
+        const matches = query ? searchPageData.filter((item) => matchesQuery(item, query)) : [];
+
+        searchPageSummary.textContent = query
+          ? `${matches.length} ${matches.length === 1 ? "result" : "results"} for "${searchPageInput.value.trim()}".`
+          : `Type to search ${searchPageData.length} posts.`;
+
+        searchPageResults.innerHTML = matches
+          .map((item) => `
+          <article class="panel card-lift p-5">
+            <p class="eyebrow">${escapeHtml(item.category)}</p>
+            <h2 class="mt-3 text-xl font-bold leading-tight tracking-tight">
+              <a href="${item.href}" class="headline-accent transition-colors">${escapeHtml(item.title)}</a>
+            </h2>
+            <p class="mt-3 text-sm leading-6 text-muted-foreground">${escapeHtml(item.excerpt)}</p>
+            <p class="mt-4 text-[12px] text-muted-foreground">
+              <a href="${item.authorHref}" class="font-semibold text-accent hover:text-accent-strong">${escapeHtml(item.author)}</a>
+              / ${escapeHtml(item.date)}
+            </p>
+          </article>
+        `)
+          .join("");
+      };
+
+      if (searchPageInput) {
+        const params = new URLSearchParams(window.location.search);
+        searchPageInput.value = params.get("q") || "";
+        renderSearchPageResults();
+        searchPageInput.addEventListener("input", renderSearchPageResults);
+      }
+    })();
+  </script>
+</BaseLayout>

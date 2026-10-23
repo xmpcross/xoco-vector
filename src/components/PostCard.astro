@@ -1,0 +1,217 @@
+---
+import { Image } from "astro:assets";
+import CategoryTag from "@/components/CategoryTag.astro";
+import { formatDate, postHref, type Post } from "@/lib/posts";
+
+interface Props {
+  post: Post;
+  variant?: "hero" | "lead" | "medium" | "list" | "horizontal" | "ranked" | "row" | "changelog";
+  rank?: number;
+  eager?: boolean;
+  headingLevel?: "h2" | "h3";
+}
+
+const { post, variant = "medium", rank, eager = false, headingLevel = "h3" } = Astro.props;
+const href = postHref(post);
+const data = post.data;
+const image = data.cover;
+const meta = `${formatDate(data.date)} / ${data.readMinutes} min read`;
+const imageLoading = eager ? "eager" : "lazy";
+const versionMatch = data.title.match(/^v\d[\d.]*/);
+const version = versionMatch ? versionMatch[0] : null;
+const changelogTitle = version ? data.title.replace(/^v\d[\d.]*:\s*/, "") : data.title;
+const Heading = headingLevel;
+---
+
+{
+  variant === "hero" && (
+    <a href={href} class="feature-card card-lift group block overflow-hidden hover-zoom">
+      <div class="grid md:grid-cols-[1.15fr_1fr]">
+        <div class="aspect-[16/10] overflow-hidden bg-muted md:aspect-auto md:min-h-[22rem]">
+          <Image
+            src={image.src}
+            alt={image.alt}
+            widths={[480, 720, 960, 1200, 1600]}
+            sizes="(min-width: 768px) 55vw, 100vw"
+            loading={imageLoading}
+            decoding="async"
+            class="h-full w-full object-cover"
+          />
+        </div>
+        <div class="flex flex-col justify-center p-6 md:p-8">
+          <div class="flex items-center gap-2.5">
+            <span class="chip chip-neutral">Featured</span>
+            <CategoryTag category={data.category} />
+          </div>
+          <h2 class="headline-accent mt-4 text-2xl font-bold leading-tight tracking-tight text-balance transition-colors md:text-[2rem]">
+            {data.title}
+          </h2>
+          <p class="mt-4 text-pretty leading-7 text-muted-foreground">{data.excerpt}</p>
+          <p class="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+            <span class="font-semibold text-foreground">{data.author.name}</span>
+            <span class="text-accent" aria-hidden="true">&middot;</span>
+            <span>{meta}</span>
+          </p>
+        </div>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "lead" && (
+    <a href={href} class="panel card-lift group block overflow-hidden hover-zoom">
+      <div class="aspect-[16/9] overflow-hidden bg-muted">
+        <Image
+          src={image.src}
+          alt={image.alt}
+          widths={[480, 720, 960, 1200]}
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          loading={imageLoading}
+          decoding="async"
+          class="h-full w-full object-cover"
+        />
+      </div>
+      <div class="p-5">
+        <CategoryTag category={data.category} />
+        <h3 class="headline-accent mt-3 text-xl font-bold leading-snug tracking-tight text-balance transition-colors md:text-2xl">
+          {data.title}
+        </h3>
+        <p class="mt-3 text-pretty text-sm leading-6 text-muted-foreground">{data.excerpt}</p>
+        <p class="mt-4 text-[12px] text-muted-foreground">{meta}</p>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "medium" && (
+    <a href={href} class="panel card-lift group block overflow-hidden hover-zoom">
+      <div class="aspect-[16/9] overflow-hidden bg-muted">
+        <Image
+          src={image.src}
+          alt={image.alt}
+          widths={[360, 480, 720, 960]}
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          loading={imageLoading}
+          decoding="async"
+          class="h-full w-full object-cover"
+        />
+      </div>
+      <div class="p-4">
+        <CategoryTag category={data.category} />
+        <Heading class="headline-accent mt-2.5 text-[1.05rem] font-bold leading-snug tracking-tight text-balance transition-colors">
+          {data.title}
+        </Heading>
+        <p class="mt-2.5 text-[12px] text-muted-foreground">{meta}</p>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "list" && (
+    <a
+      href={href}
+      class="group grid gap-5 py-7 first:pt-0 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-center lg:grid-cols-[12rem_minmax(0,1fr)]"
+    >
+      <div class="aspect-[16/10] overflow-hidden rounded-md bg-muted hover-zoom sm:aspect-square">
+        <Image
+          src={image.src}
+          alt={image.alt}
+          widths={[360, 480, 640, 800]}
+          sizes="(min-width: 1024px) 192px, (min-width: 640px) 176px, 100vw"
+          loading={imageLoading}
+          decoding="async"
+          class="h-full w-full object-cover"
+        />
+      </div>
+      <div class="min-w-0">
+        <p class="flex flex-wrap items-center gap-2.5 text-[12px] text-muted-foreground">
+          <time datetime={data.date.toISOString()}>{formatDate(data.date)}</time>
+          <span aria-hidden="true">&middot;</span>
+          <span>{data.readMinutes} min read</span>
+        </p>
+        <Heading class="headline-accent mt-3 max-w-3xl text-2xl font-bold leading-tight tracking-tight text-pretty transition-colors">
+          {data.title}
+        </Heading>
+        <p class="mt-2.5 line-clamp-2 max-w-3xl text-pretty text-sm leading-6 text-muted-foreground">{data.excerpt}</p>
+        <p class="mt-3 text-[12px] font-semibold text-foreground">{data.author.name}</p>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "row" && (
+    <a href={href} class="group grid gap-x-6 gap-y-1 border-b border-border py-5 last:border-b-0 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+      <p class="text-[12px] leading-6 text-muted-foreground">{formatDate(data.date)}</p>
+      <div class="min-w-0">
+        <h3 class="headline-accent text-lg font-bold leading-snug tracking-tight text-balance transition-colors">
+          {data.title}
+        </h3>
+        <p class="mt-1.5 line-clamp-2 text-pretty text-sm leading-6 text-muted-foreground">{data.excerpt}</p>
+        <p class="mt-2.5 flex flex-wrap items-center gap-2.5 text-[12px] text-muted-foreground">
+          <CategoryTag category={data.category} />
+          <span>{data.readMinutes} min read</span>
+        </p>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "changelog" && (
+    <a href={href} class="group relative block border-l-2 border-border pb-7 pl-6 last:pb-0">
+      <span class="absolute -left-[5px] top-1.5 h-2 w-2 bg-accent" aria-hidden="true" />
+      <p class="flex flex-wrap items-center gap-2.5">
+        {version && <span class="version-chip">{version}</span>}
+        <span class="text-[12px] text-muted-foreground">{formatDate(data.date)}</span>
+      </p>
+      <h3 class="headline-accent mt-2 text-[1rem] font-bold leading-snug tracking-tight text-balance transition-colors">
+        {changelogTitle}
+      </h3>
+      <p class="mt-1.5 line-clamp-2 text-pretty text-sm leading-6 text-muted-foreground">{data.excerpt}</p>
+    </a>
+  )
+}
+
+{
+  variant === "horizontal" && (
+    <a href={href} class="group grid grid-cols-[84px_minmax(0,1fr)] items-start gap-4 py-3.5 hover-zoom">
+      <div class="h-[72px] overflow-hidden rounded-sm bg-muted">
+        <Image
+          src={image.src}
+          alt={image.alt}
+          width={320}
+          height={320}
+          loading={imageLoading}
+          decoding="async"
+          class="h-full w-full object-cover"
+        />
+      </div>
+      <div class="min-w-0">
+        <h3 class="headline-accent text-[0.95rem] font-bold leading-snug text-balance transition-colors">
+          {data.title}
+        </h3>
+        <p class="mt-1.5 text-[11px] text-muted-foreground">{formatDate(data.date)} &middot; {data.category}</p>
+      </div>
+    </a>
+  )
+}
+
+{
+  variant === "ranked" && (
+    <a href={href} class="group grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-4 border-b border-border py-3.5 last:border-b-0">
+      <span class="w-8 font-mono text-sm font-bold text-accent">
+        {String(rank ?? 1).padStart(2, "0")}
+      </span>
+      <span class="min-w-0">
+        <span class="headline-accent block text-[0.95rem] font-bold leading-snug text-balance transition-colors">
+          {data.title}
+        </span>
+        <span class="mt-1 block text-[11px] text-muted-foreground">{formatDate(data.date)} &middot; {data.category}</span>
+      </span>
+    </a>
+  )
+}

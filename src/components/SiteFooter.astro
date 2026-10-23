@@ -1,0 +1,97 @@
+---
+import { navigation, siteConfig } from "@/config/site";
+import LocalIcon from "@/components/LocalIcon.astro";
+
+const socialIconByLabel = {
+  Instagram: "instagram",
+  TikTok: "tiktok",
+  YouTube: "youtube",
+  RSS: "rss",
+} as const;
+
+const socials = siteConfig.socials.map((item) => ({
+  ...item,
+  icon: socialIconByLabel[item.label as keyof typeof socialIconByLabel] ?? "link-45deg",
+}));
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="site-footer mt-24 border-t border-border">
+  <div class="mx-auto grid layout-wide gap-12 px-5 py-14 md:grid-cols-[1.5fr_1fr_1fr_1fr] lg:px-8">
+    <div>
+      <a href="/" class="flex items-center gap-2.5" aria-label={`${siteConfig.name} home`}>
+        <span class="text-xl font-bold tracking-tight">{siteConfig.name}</span>
+      </a>
+      <p class="mt-4 max-w-xs text-sm leading-6 text-muted-foreground">{siteConfig.description}</p>
+      <div class="mt-6 flex flex-wrap gap-2 text-muted-foreground">
+        {
+          socials.map((item) => (
+            <a
+              href={item.href}
+              class="inline-grid h-10 w-10 place-items-center rounded-full border border-border transition-colors hover:border-accent hover:text-accent"
+              aria-label={item.label === "RSS" ? "RSS feed" : `${siteConfig.name} on ${item.label}`}
+              rel={item.href.startsWith("http") ? "noreferrer" : undefined}
+            >
+              <LocalIcon name={item.icon} className="h-4 w-4" />
+            </a>
+          ))
+        }
+      </div>
+    </div>
+
+    <div>
+      <h2 class="eyebrow">Sections</h2>
+      <ul class="mt-4 space-y-2 text-sm text-muted-foreground">
+        {navigation.map((item) => <li><a href={item.href} class="story-link hover:text-foreground">{item.label}</a></li>)}
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="eyebrow">About</h2>
+      <ul class="mt-4 space-y-2 text-sm text-muted-foreground">
+        <li><a href="/about/" class="story-link hover:text-foreground">About</a></li>
+        <li><a href="/contact/" class="story-link hover:text-foreground">Contact</a></li>
+        <li><a href="/#newsletter" class="story-link hover:text-foreground">Newsletter</a></li>
+        <li><a href="/privacy/" class="story-link hover:text-foreground">Privacy</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="eyebrow">Resources</h2>
+      <ul class="mt-4 space-y-2 text-sm text-muted-foreground">
+        <li><a href="/robots.txt" class="story-link hover:text-foreground">Robots</a></li>
+        <li><a href="/sitemap.xml" class="story-link hover:text-foreground">Sitemap</a></li>
+        <li><a href="/rss.xml" class="story-link hover:text-foreground">RSS</a></li>
+        <li><a href="https://astro.build/" class="story-link hover:text-foreground" rel="noreferrer">Astro</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="border-t border-border">
+    <div class="mx-auto flex layout-wide flex-col items-center justify-between gap-3 px-5 py-6 text-xs text-muted-foreground sm:flex-row lg:px-8">
+      <p>&copy; {currentYear} {siteConfig.name}. All rights reserved.</p>
+      <p>Built with Astro</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  /*
+   * In light mode the footer is a deliberate neutral dark band, so it needs its
+   * own light-on-dark token values instead of the page's --foreground /
+   * --muted-foreground / --border. In dark mode we leave those
+   * alone entirely so the footer just inherits the page's own dark palette
+   * instead of standing out as a separately-colored block.
+   */
+  :root[data-theme="light"] .site-footer {
+    --foreground: var(--gray-50);
+    --muted-foreground: var(--gray-400);
+    --border: var(--gray-700);
+    background: var(--gray-900);
+    color: var(--gray-50);
+  }
+
+  :root[data-theme="dark"] .site-footer {
+    background: var(--card);
+  }
+</style>

@@ -1,0 +1,1083 @@
+---
+import { mainNavigation, siteConfig, type NavLink } from "@/config/site";
+import { formatDate, postHref, visiblePosts, type Post } from "@/lib/posts";
+
+interface Props {
+  posts: Post[];
+}
+
+const currentPath = Astro.url.pathname;
+const searchItems = visiblePosts(Astro.props.posts).slice(0, 8);
+const isCurrentPath = (href: string) =>
+  currentPath === href || (href !== "/" && currentPath.startsWith(href));
+const isCurrentGroup = (links: NavLink[]) => links.some((link) => isCurrentPath(link.href));
+const desktopNavClass = (active: boolean) => [
+  "border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors",
+  active
+    ? "border-accent text-foreground"
+    : "border-transparent text-foreground hover:border-border",
+];
+const mobileNavClass = (active: boolean) => [
+  "block border-b border-border px-1 py-3.5 text-xl font-bold transition-colors hover:text-accent",
+  active ? "text-accent" : "text-foreground",
+];
+---
+
+<header class="site-header">
+  <div class="mx-auto flex layout-wide items-center justify-between gap-4 px-5 py-3.5 lg:px-8">
+    <a href="/" class="flex min-w-0 items-center gap-2.5" aria-label={`${siteConfig.name} home`}>
+      <span class="text-xl font-bold tracking-tight">{siteConfig.name}</span>
+    </a>
+
+    <nav class="hidden items-center gap-0.5 lg:flex" aria-label="Primary navigation">
+      {
+        mainNavigation.map((item, index) =>
+          "children" in item ? (
+            <div class="nav-dropdown" data-nav-dropdown>
+              <button
+                type="button"
+                class:list={[desktopNavClass(isCurrentGroup(item.children)), "inline-flex cursor-pointer items-center gap-1"]}
+                aria-expanded="false"
+                aria-controls={`nav-dropdown-${index}`}
+                data-nav-dropdown-toggle
+              >
+                {item.label}
+                <svg aria-hidden="true" class="nav-chevron h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <ul id={`nav-dropdown-${index}`} class="nav-dropdown-menu" tabindex="-1" hidden data-nav-dropdown-menu>
+                {item.children.map((child) => (
+                  <li>
+                    <a href={child.href} class="nav-dropdown-link" aria-current={isCurrentPath(child.href) ? "page" : undefined}>
+                      {child.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <a
+              href={item.href}
+              aria-current={isCurrentPath(item.href) ? "page" : undefined}
+              class:list={desktopNavClass(isCurrentPath(item.href))}
+            >
+              {item.label}
+            </a>
+          ),
+        )
+      }
+    </nav>
+
+    <div class="flex shrink-0 items-center gap-1.5">
+      <a
+        href="/search/"
+        class="site-search-trigger"
+        aria-label="Search articles"
+        aria-haspopup="dialog"
+        aria-controls="site-search-dialog"
+        data-search-toggle
+      >
+        <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2" />
+          <path d="m16 16 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="square" />
+        </svg>
+        <span class="hidden xl:inline">Search</span>
+        <kbd class="hidden 2xl:inline-flex" aria-hidden="true" data-search-shortcut>Ctrl K</kbd>
+      </a>
+      <button type="button" class="theme-toggle inline-grid h-9 w-9 place-items-center text-foreground/80 transition-colors hover:bg-muted hover:text-foreground" data-theme-toggle aria-label="Switch color theme">
+        <svg aria-hidden="true" class="theme-icon theme-icon-sun h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5 5l-1.5-1.5M20.5 20.5 19 19M19 5l1.5-1.5M3.5 20.5 5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" />
+        </svg>
+        <svg aria-hidden="true" class="theme-icon theme-icon-moon h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <path d="M20 14.2A7.4 7.4 0 0 1 9.8 4a8.6 8.6 0 1 0 10.2 10.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="mobile-menu-toggle inline-grid h-9 w-9 shrink-0 cursor-pointer place-items-center self-center border border-border lg:hidden"
+        aria-controls="mobile-menu-panel"
+        aria-expanded="false"
+        data-mobile-menu-toggle
+      >
+        <span class="mobile-menu-label-open" aria-hidden="true">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="square" />
+          </svg>
+        </span>
+        <span class="mobile-menu-label-close" aria-hidden="true">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+            <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="square" />
+          </svg>
+        </span>
+        <span class="sr-only">Open navigation menu</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<dialog
+  id="site-search-dialog"
+  class="search-dialog"
+  aria-labelledby="site-search-title"
+  aria-describedby="site-search-description"
+  data-search-dialog
+>
+  <div class="search-command" data-search-panel data-empty>
+    <form action="/search/" method="get" role="search" aria-label="Site search" data-search-form>
+      <div class="search-command-field">
+        <svg aria-hidden="true" class="search-command-icon" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2" />
+          <path d="m16 16 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <div class="min-w-0 flex-1">
+          <h2 id="site-search-title" class="sr-only">Search {siteConfig.name}</h2>
+          <label class="sr-only" for="site-search-input">Search articles</label>
+          <input
+            id="site-search-input"
+            name="q"
+            type="search"
+            class="search-command-input"
+            placeholder="Search articles, topics, authors…"
+            autocomplete="off"
+            enterkeyhint="search"
+            data-search-input
+          />
+        </div>
+        <button type="button" class="search-command-close" aria-label="Close search" data-search-close>
+          <svg aria-hidden="true" class="search-command-close-icon" viewBox="0 0 24 24" fill="none">
+            <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="search-command-body">
+        <div class="search-command-heading">
+          <p class="eyebrow" data-search-heading></p>
+          <p id="site-search-description" class="text-xs text-muted-foreground" data-search-summary aria-live="polite"></p>
+        </div>
+        <div class="search-command-results" data-search-results></div>
+      </div>
+
+      <div class="search-command-footer" aria-hidden="true">
+        <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+        <span><kbd>↵</kbd> Open</span>
+        <span class="ml-auto hidden sm:inline">Search all with Enter</span>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<div
+  id="mobile-menu-panel"
+  class="mobile-menu-panel lg:hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Navigation menu"
+  hidden
+>
+  <div class="flex items-center justify-between gap-6 border-b border-border px-6 py-4">
+    <a href="/" class="flex items-center gap-2.5" aria-label={`${siteConfig.name} home`}>
+      <span class="text-xl font-bold tracking-tight">{siteConfig.name}</span>
+    </a>
+    <button type="button" class="mobile-menu-close grid h-9 w-9 shrink-0 place-items-center border border-border" data-mobile-menu-close aria-label="Close navigation menu">
+      <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="square" />
+      </svg>
+    </button>
+  </div>
+
+  <nav class="px-6 py-5" aria-label="Mobile navigation">
+    <ul class="grid gap-1">
+      {
+        mainNavigation.map((item, index) =>
+          "children" in item ? (
+            <li>
+              <button
+                type="button"
+                class:list={[mobileNavClass(isCurrentGroup(item.children)), "flex w-full cursor-pointer items-center justify-between text-left"]}
+                aria-expanded={isCurrentGroup(item.children) ? "true" : "false"}
+                aria-controls={`mobile-nav-group-${index}`}
+                data-mobile-nav-group-toggle
+              >
+                {item.label}
+                <svg aria-hidden="true" class="nav-chevron h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <ul id={`mobile-nav-group-${index}`} class="grid gap-0.5 border-b border-border py-2 pl-4" hidden={!isCurrentGroup(item.children)}>
+                {item.children.map((child) => (
+                  <li>
+                    <a
+                      href={child.href}
+                      aria-current={isCurrentPath(child.href) ? "page" : undefined}
+                      class:list={[
+                        "block px-1 py-2 text-base font-semibold transition-colors hover:text-accent",
+                        isCurrentPath(child.href) ? "text-accent" : "text-muted-foreground",
+                      ]}
+                    >
+                      {child.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ) : (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isCurrentPath(item.href) ? "page" : undefined}
+                class:list={mobileNavClass(isCurrentPath(item.href))}
+              >
+                {item.label}
+              </a>
+            </li>
+          ),
+        )
+      }
+    </ul>
+  </nav>
+</div>
+
+<script is:inline type="application/json" id="site-search-fallback" set:html={JSON.stringify(searchItems.map((post) => ({
+  title: post.data.title,
+  excerpt: post.data.excerpt,
+  href: postHref(post),
+  category: post.data.category,
+  author: post.data.author.name,
+  date: formatDate(post.data.date),
+})))} />
+
+<script is:inline>
+  (() => {
+  const searchDialog = document.querySelector("[data-search-dialog]");
+  const searchToggle = document.querySelector("[data-search-toggle]");
+  const searchClose = searchDialog?.querySelector("[data-search-close]");
+  const searchShortcut = searchToggle?.querySelector("[data-search-shortcut]");
+  const searchInput = searchDialog?.querySelector("[data-search-input]");
+  const searchResults = searchDialog?.querySelector("[data-search-results]");
+  const searchHeading = searchDialog?.querySelector("[data-search-heading]");
+  const searchSummary = searchDialog?.querySelector("[data-search-summary]");
+  const searchPanel = searchDialog?.querySelector("[data-search-panel]");
+  let siteSearchData = [];
+  let siteSearchDataPromise;
+
+  const siteSearchFallback = JSON.parse(document.getElementById("site-search-fallback")?.textContent || "[]");
+
+  if (searchShortcut && /Mac|iPhone|iPad/.test(navigator.userAgent)) {
+    searchShortcut.textContent = "⌘ K";
+  }
+
+  const loadSearchData = async () => {
+    if (siteSearchData.length > 0) return siteSearchData;
+
+    siteSearchDataPromise ??= fetch("/search-index.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("Search index unavailable");
+        return response.json();
+      })
+      .then((items) => {
+        siteSearchData = Array.isArray(items) ? items : siteSearchFallback;
+        return siteSearchData;
+      })
+      .catch(() => {
+        siteSearchData = siteSearchFallback;
+        return siteSearchData;
+      });
+
+    return siteSearchDataPromise;
+  };
+
+  const escapeHtml = (value) =>
+    String(value).replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[character]);
+
+  const rankSearchItem = (item, query) => {
+    const title = item.title.toLowerCase();
+    const category = item.category.toLowerCase();
+    const tags = (item.tags || []).join(" ").toLowerCase();
+    const supportingText = [item.excerpt, item.author].join(" ").toLowerCase();
+
+    if (title.startsWith(query)) return 0;
+    if (title.includes(query)) return 1;
+    if (`${category} ${tags}`.includes(query)) return 2;
+    if (supportingText.includes(query)) return 3;
+    return Number.POSITIVE_INFINITY;
+  };
+
+  const searchResultMarkup = (item) => `
+    <a href="${escapeHtml(item.href)}" class="search-result">
+      <span class="search-result-copy">
+        <span class="search-result-title">${escapeHtml(item.title)}</span>
+        <span class="search-result-meta">
+          <span>${escapeHtml(item.category)}</span>
+          <span aria-hidden="true">·</span>
+          <span>${escapeHtml(item.date)}</span>
+        </span>
+      </span>
+      <svg aria-hidden="true" class="search-result-arrow" viewBox="0 0 24 24" fill="none">
+        <path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </a>
+  `;
+
+  const renderSearchResults = async () => {
+    if (!searchInput || !searchResults || !searchHeading || !searchSummary) return;
+
+    const rawQuery = searchInput.value.trim();
+    const query = rawQuery.toLowerCase();
+
+    /* Until the reader types, the palette collapses to just the input: no
+       latest-articles list and no placeholder copy. */
+    if (!query) {
+      searchPanel?.setAttribute("data-empty", "");
+      searchHeading.textContent = "";
+      searchSummary.textContent = "";
+      searchResults.innerHTML = "";
+      return;
+    }
+
+    searchPanel?.removeAttribute("data-empty");
+
+    const items = await loadSearchData();
+
+    /* A newer keystroke may have landed while the index was loading. */
+    if (searchInput.value.trim().toLowerCase() !== query) return;
+
+    const matches = items
+      .map((item) => ({ item, rank: rankSearchItem(item, query) }))
+      .filter(({ rank }) => Number.isFinite(rank))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 7)
+      .map(({ item }) => item);
+
+    searchHeading.textContent = "Search results";
+    searchSummary.textContent = `${matches.length} ${matches.length === 1 ? "result" : "results"} for “${rawQuery}”.`;
+
+    if (matches.length === 0) {
+      searchResults.innerHTML = `
+        <div class="search-empty">
+          <span class="search-empty-icon" aria-hidden="true">?</span>
+          <div>
+            <p class="font-semibold text-foreground">No articles found</p>
+            <p class="mt-1 text-sm text-muted-foreground">Try a title, topic, tag, or author.</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    searchResults.innerHTML = matches.map(searchResultMarkup).join("");
+  };
+
+  const openSearch = () => {
+    if (!searchDialog || !searchInput || typeof searchDialog.showModal !== "function") return;
+    if (!searchDialog.open) searchDialog.showModal();
+    document.documentElement.classList.add("has-open-search");
+    void renderSearchResults();
+    window.requestAnimationFrame(() => searchInput.focus());
+  };
+
+  const closeSearch = () => {
+    if (searchDialog?.open) searchDialog.close();
+  };
+
+  searchToggle?.addEventListener("click", (event) => {
+    if (!searchDialog || typeof searchDialog.showModal !== "function") return;
+    event.preventDefault();
+    openSearch();
+  });
+
+  searchClose?.addEventListener("click", closeSearch);
+
+  searchDialog?.addEventListener("close", () => {
+    document.documentElement.classList.remove("has-open-search");
+    searchToggle?.focus();
+  });
+
+  searchDialog?.addEventListener("click", (event) => {
+    if (event.target === searchDialog) closeSearch();
+  });
+
+  searchInput?.addEventListener("input", () => {
+    void renderSearchResults();
+  });
+
+  searchInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown") return;
+    const firstResult = searchResults?.querySelector("a");
+    if (!firstResult) return;
+    event.preventDefault();
+    firstResult.focus();
+  });
+
+  searchResults?.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+
+    const links = Array.from(searchResults.querySelectorAll("a"));
+    const currentIndex = links.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+
+    event.preventDefault();
+    if (event.key === "ArrowDown") {
+      (links[currentIndex + 1] || links[0])?.focus();
+    } else if (currentIndex === 0) {
+      searchInput?.focus();
+    } else {
+      links[currentIndex - 1]?.focus();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const target = event.target;
+    const isEditing =
+      target instanceof HTMLElement &&
+      (target.matches("input, textarea, select") || target.isContentEditable);
+    const isCommandShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+    const isSlashShortcut = event.key === "/" && !isEditing && !event.metaKey && !event.ctrlKey && !event.altKey;
+
+    if (!isCommandShortcut && !isSlashShortcut) return;
+    event.preventDefault();
+
+    if (searchDialog?.open && isCommandShortcut) closeSearch();
+    else openSearch();
+  });
+
+  const siteHeader = document.querySelector(".site-header");
+
+  if (siteHeader) {
+    let scrollTicking = false;
+    let lastScrollY = window.scrollY;
+
+    const updateHeaderScrolled = () => {
+      const currentScrollY = window.scrollY;
+
+      siteHeader.classList.toggle("is-scrolled", currentScrollY > 8);
+
+      if (currentScrollY <= 8) {
+        siteHeader.classList.remove("is-hidden");
+      } else if (currentScrollY > lastScrollY) {
+        siteHeader.classList.add("is-hidden");
+      } else if (currentScrollY < lastScrollY) {
+        siteHeader.classList.remove("is-hidden");
+      }
+
+      lastScrollY = currentScrollY;
+      scrollTicking = false;
+    };
+
+    updateHeaderScrolled();
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (scrollTicking) return;
+        scrollTicking = true;
+        window.requestAnimationFrame(updateHeaderScrolled);
+      },
+      { passive: true },
+    );
+  }
+
+  document.querySelectorAll("[data-nav-dropdown]").forEach((dropdown) => {
+    const toggle = dropdown.querySelector("[data-nav-dropdown-toggle]");
+    const menu = dropdown.querySelector("[data-nav-dropdown-menu]");
+    if (!toggle || !menu) return;
+
+    const links = Array.from(menu.querySelectorAll("a"));
+    const header = dropdown.closest(".site-header");
+
+    const setOpen = (open) => {
+      if (open && header) {
+        const gap = header.getBoundingClientRect().bottom - dropdown.getBoundingClientRect().bottom;
+        dropdown.style.setProperty("--nav-dropdown-gap", `${gap}px`);
+      }
+      menu.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+    };
+
+    let closeTimer;
+    let lastPointerType = "";
+
+    dropdown.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "mouse") return;
+      window.clearTimeout(closeTimer);
+      setOpen(true);
+    });
+
+    dropdown.addEventListener("pointerleave", (event) => {
+      if (event.pointerType !== "mouse" || dropdown.querySelector(":focus-visible")) return;
+      closeTimer = window.setTimeout(() => setOpen(false), 150);
+    });
+
+    toggle.addEventListener("pointerdown", (event) => {
+      lastPointerType = event.pointerType;
+    });
+
+    /* Hover already opened it for mouse users; toggling here would close it on click. */
+    toggle.addEventListener("click", (event) => {
+      setOpen(event.detail > 0 && lastPointerType === "mouse" ? true : menu.hidden);
+    });
+
+    toggle.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowDown") return;
+      event.preventDefault();
+      setOpen(true);
+      links[0]?.focus();
+    });
+
+    menu.addEventListener("keydown", (event) => {
+      const currentIndex = links.indexOf(document.activeElement);
+      const nextLink = {
+        ArrowDown: links[currentIndex + 1] || links[0],
+        ArrowUp: links[currentIndex - 1] || links.at(-1),
+        Home: links[0],
+        End: links.at(-1),
+      }[event.key];
+      if (!nextLink) return;
+      event.preventDefault();
+      nextLink.focus();
+    });
+
+    dropdown.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || menu.hidden) return;
+      setOpen(false);
+      toggle.focus();
+    });
+
+    dropdown.addEventListener("focusout", (event) => {
+      if (!dropdown.contains(event.relatedTarget)) setOpen(false);
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!dropdown.contains(event.target)) setOpen(false);
+    });
+  });
+
+  const mobileMenuButton = document.querySelector("[data-mobile-menu-toggle]");
+  const mobileMenuPanel = document.getElementById("mobile-menu-panel");
+
+  if (mobileMenuButton && mobileMenuPanel) {
+    const mobileMenuClose = mobileMenuPanel.querySelector("[data-mobile-menu-close]");
+    const mobileMenuFirstLink = mobileMenuPanel.querySelector("a");
+    const desktopMedia = window.matchMedia("(min-width: 1024px)");
+    const focusableSelector =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    let inertedElements = [];
+
+    const setMenuOpen = (open) => {
+      mobileMenuPanel.hidden = !open;
+      mobileMenuButton.setAttribute("aria-expanded", String(open));
+      document.documentElement.classList.toggle("has-open-menu", open);
+
+      if (open) {
+        inertedElements = Array.from(document.body.children).filter(
+          (element) => element !== mobileMenuPanel && !element.inert,
+        );
+        inertedElements.forEach((element) => {
+          element.inert = true;
+        });
+
+        window.requestAnimationFrame(() => {
+          (mobileMenuClose || mobileMenuFirstLink)?.focus();
+        });
+      } else {
+        inertedElements.forEach((element) => {
+          element.inert = false;
+        });
+        inertedElements = [];
+      }
+    };
+
+    mobileMenuButton.addEventListener("click", () => {
+      setMenuOpen(mobileMenuButton.getAttribute("aria-expanded") !== "true");
+    });
+
+    mobileMenuPanel.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => setMenuOpen(false));
+    });
+
+    mobileMenuPanel.querySelectorAll("[data-mobile-nav-group-toggle]").forEach((toggle) => {
+      const group = document.getElementById(toggle.getAttribute("aria-controls"));
+
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") !== "true";
+        toggle.setAttribute("aria-expanded", String(open));
+        if (group) group.hidden = !open;
+      });
+    });
+
+    mobileMenuClose?.addEventListener("click", () => {
+      setMenuOpen(false);
+      mobileMenuButton.focus();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (mobileMenuPanel.hidden) return;
+
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        mobileMenuButton.focus();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = Array.from(mobileMenuPanel.querySelectorAll(focusableSelector)).filter(
+        (element) => element.getClientRects().length > 0,
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements.at(-1);
+      if (!firstElement || !lastElement) return;
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    });
+
+    desktopMedia.addEventListener("change", (event) => {
+      if (event.matches && !mobileMenuPanel.hidden) setMenuOpen(false);
+    });
+  }
+  })();
+</script>
+
+<style>
+  .theme-toggle {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .nav-chevron {
+    flex: 0 0 auto;
+    transition: transform 160ms ease;
+  }
+
+  [aria-expanded="true"] > .nav-chevron {
+    transform: rotate(180deg);
+  }
+
+  .nav-dropdown {
+    position: relative;
+  }
+
+  .nav-dropdown-menu {
+    position: absolute;
+    top: calc(100% + var(--nav-dropdown-gap, 0.5rem));
+    left: 0;
+    z-index: 70;
+    display: grid;
+    min-width: 13rem;
+    gap: 0.1rem;
+    border: 1px solid var(--border);
+    border-top: 0;
+    background: var(--background);
+    padding: 0.4rem;
+    outline: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: 0 18px 32px -16px color-mix(in srgb, var(--gray-950) 22%, transparent);
+  }
+
+  .nav-dropdown-menu[hidden] {
+    display: none;
+  }
+
+  /* Bridges the gap under the button so hover isn't lost on the way down. */
+  .nav-dropdown-menu::before {
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: var(--nav-dropdown-gap, 0.5rem);
+    content: "";
+  }
+
+  .nav-dropdown-link {
+    display: block;
+    padding: 0.55rem 0.75rem;
+    color: var(--muted-foreground);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition:
+      background-color 140ms ease,
+      color 140ms ease;
+  }
+
+  .nav-dropdown-link:hover,
+  .nav-dropdown-link:focus-visible {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .nav-dropdown-link[aria-current="page"] {
+    color: var(--accent);
+  }
+
+  .site-search-trigger {
+    display: inline-flex;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: color-mix(in srgb, var(--foreground) 80%, transparent);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .site-search-trigger:hover,
+  .site-search-trigger:focus-visible {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .site-search-trigger > span {
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+
+  .site-search-trigger > kbd {
+    height: 1.4rem;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: var(--background);
+    padding: 0 0.4rem;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    border-radius: 0.3rem;
+  }
+
+  @media (min-width: 1280px) {
+    .site-search-trigger {
+      padding: 0 0.65rem;
+    }
+  }
+
+  .search-dialog {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    overflow-y: auto;
+    color: var(--foreground);
+    border: 0;
+    background: transparent;
+    padding: clamp(0.75rem, 9vh, 6rem) 1rem 1rem;
+  }
+
+  .search-dialog[open] {
+    display: grid;
+    grid-template-columns: minmax(0, 43rem);
+    align-items: start;
+    justify-content: center;
+  }
+
+  .search-dialog::backdrop {
+    background: color-mix(in srgb, var(--gray-950) 52%, transparent);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+
+  .search-command {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 97%, transparent);
+    border-radius: var(--radius-xl);
+    box-shadow:
+      0 28px 80px color-mix(in srgb, var(--gray-950) 34%, transparent),
+      0 2px 8px color-mix(in srgb, var(--gray-950) 14%, transparent);
+  }
+
+  .search-dialog[open] .search-command {
+    animation: search-command-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .search-command-field {
+    display: flex;
+    min-height: 4.75rem;
+    align-items: center;
+    gap: 0.9rem;
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.25rem;
+  }
+
+  .search-command-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 auto;
+    color: var(--accent);
+  }
+
+  .search-command-input {
+    width: 100%;
+    height: 4.7rem;
+    border: 0;
+    background: transparent;
+    color: var(--foreground);
+    outline: none;
+    padding: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1rem, 3vw, 1.2rem);
+    font-weight: 550;
+  }
+
+  .search-command-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.78;
+  }
+
+  .search-command-input::-webkit-search-cancel-button {
+    display: none;
+    appearance: none;
+  }
+
+  .search-command-close {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .search-command-close:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .search-command-close-icon {
+    display: block;
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .search-command-body {
+    max-height: min(60vh, 30rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.9rem;
+  }
+
+  /* Before the first keystroke the palette is just the input and the shortcut
+     hints, so it stays as small as possible. */
+  .search-command[data-empty] .search-command-body {
+    display: none;
+  }
+
+  .search-command[data-empty] .search-command-field {
+    border-bottom-color: transparent;
+  }
+
+  .search-command-heading {
+    display: flex;
+    min-height: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0 0.45rem 0.55rem;
+  }
+
+  .search-command-results {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  :global(.search-result) {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid transparent;
+    padding: 0.85rem 0.9rem;
+    color: var(--foreground);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition:
+      border-color 140ms ease,
+      background-color 140ms ease;
+  }
+
+  :global(.search-result:hover),
+  :global(.search-result:focus-visible) {
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+    background: color-mix(in srgb, var(--accent) 8%, var(--muted));
+    outline: none;
+  }
+
+  :global(.search-result-copy) {
+    min-width: 0;
+  }
+
+  :global(.search-result-title) {
+    display: block;
+    overflow: hidden;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :global(.search-result-meta) {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    color: var(--muted-foreground);
+    font-size: 0.7rem;
+  }
+
+  :global(.search-result-arrow) {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+    opacity: 0;
+    transform: translateX(-0.25rem);
+    transition:
+      color 140ms ease,
+      opacity 140ms ease,
+      transform 140ms ease;
+  }
+
+  :global(.search-result:hover .search-result-arrow),
+  :global(.search-result:focus-visible .search-result-arrow) {
+    color: var(--accent);
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  :global(.search-empty) {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 2.25rem 0.9rem;
+  }
+
+  :global(.search-empty-icon) {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--border);
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    border-radius: 50%;
+  }
+
+  .search-command-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--border);
+    padding: 0.7rem 1.25rem;
+    color: var(--muted-foreground);
+    font-size: 0.68rem;
+  }
+
+  .search-command-footer span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .search-command-footer kbd {
+    display: inline-grid;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    place-items: center;
+    border: 1px solid var(--border);
+    background: var(--muted);
+    color: var(--foreground);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    border-radius: 0.28rem;
+  }
+
+  :global(html.has-open-search),
+  :global(html.has-open-search body) {
+    overflow: hidden;
+  }
+
+  @keyframes search-command-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.6rem) scale(0.985);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .search-dialog {
+      padding: 0.75rem;
+    }
+
+    .search-command {
+      border-radius: var(--radius-lg);
+    }
+
+    .search-command-field {
+      min-height: 4rem;
+      gap: 0.7rem;
+      padding: 0 1rem;
+    }
+
+    .search-command-input {
+      height: 4rem;
+    }
+
+    .search-command-body {
+      max-height: calc(100dvh - 9rem);
+      padding: 0.7rem;
+    }
+
+    .search-command-heading {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .search-command-footer {
+      padding-inline: 1rem;
+    }
+  }
+</style>
