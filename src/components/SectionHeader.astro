@@ -1,0 +1,24 @@
+---
+import { categorySlug, type Category } from "@/lib/posts";
+
+interface Props {
+  title: string;
+  category: Category;
+}
+
+const { title, category } = Astro.props;
+const slug = categorySlug(category);
+---
+
+<div id={slug} class="mb-7 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border pb-3 scroll-mt-24">
+  <div>
+    <p class="eyebrow">{category}</p>
+    <h2 class="mt-1 text-2xl font-bold tracking-tight md:text-[1.7rem]">{title}</h2>
+  </div>
+  <a
+    href={`/category/${slug}/`}
+    class="pb-1 text-[13px] font-semibold text-accent transition-colors hover:text-accent-strong"
+  >
+    View all →
+  </a>
+</div>

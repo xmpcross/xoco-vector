@@ -1,0 +1,649 @@
+---
+import { Image } from "astro:assets";
+import { getCollection, render } from "astro:content";
+import LocalIcon from "@/components/LocalIcon.astro";
+import PostCard from "@/components/PostCard.astro";
+import SiteFooter from "@/components/SiteFooter.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Callout from "@/components/mdx/Callout.astro";
+import CodeGroup from "@/components/mdx/CodeGroup.astro";
+import CodeGroupItem from "@/components/mdx/CodeGroupItem.astro";
+import {
+  authorSlug,
+  categorySlug,
+  formatDate,
+  getRelated,
+  postSlug,
+  tagSlug,
+  visiblePosts,
+  type Post,
+} from "@/lib/posts";
+import { siteConfig } from "@/config/site";
+
+export async function getStaticPaths() {
+  const allPosts = visiblePosts(await getCollection("posts"));
+  return allPosts.map((post) => ({
+    params: { slug: postSlug(post) },
+    props: { post, allPosts },
+  }));
+}
+
+interface Props {
+  post: Post;
+  allPosts: Post[];
+}
+
+const { post, allPosts } = Astro.props;
+const { Content, headings } = await render(post);
+const tableOfContents = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const mdxComponents = { Callout, CodeGroup, CodeGroupItem };
+const related = getRelated(allPosts, post);
+const data = post.data;
+const slug = postSlug(post);
+const isUpdate = Boolean(data.release);
+const showCoverInPost = data.cover.showInPost ?? !isUpdate;
+const releaseVersion = data.release?.version ?? data.title.match(/^v\d[\d.]*/)?.[0];
+const releaseTitle = releaseVersion
+  ? data.title.replace(new RegExp(`^${releaseVersion.replace(/\./g, "\\.")}:?\\s*`), "")
+  : data.title;
+const categoryHref = `/category/${categorySlug(data.category)}/`;
+const authorHref = `/author/${authorSlug(data.author.name)}/`;
+const articleUrl = new URL(`/post/${slug}/`, siteConfig.siteUrl).toString();
+const imageUrl = data.cover.src.src;
+const absoluteImageUrl = new URL(imageUrl, siteConfig.siteUrl).toString();
+const encodedArticleUrl = encodeURIComponent(articleUrl);
+const encodedTitle = encodeURIComponent(data.title);
+const shareLinks: { label: string; icon: "twitter-x" | "facebook" | "linkedin"; href: string }[] = [
+  {
+    label: "X",
+    icon: "twitter-x",
+    href: `https://twitter.com/intent/tweet?url=${encodedArticleUrl}&text=${encodedTitle}`,
+  },
+  {
+    label: "Facebook",
+    icon: "facebook",
+    href: `https://www.facebook.com/sharer/sharer.php?u=${encodedArticleUrl}`,
+  },
+  {
+    label: "LinkedIn",
+    icon: "linkedin",
+    href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedArticleUrl}`,
+  },
+];
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: data.title,
+  description: data.excerpt,
+  image: absoluteImageUrl,
+  datePublished: data.date.toISOString(),
+  dateModified: (data.updatedDate ?? data.date).toISOString(),
+  author: {
+    "@type": "Person",
+    name: data.author.name,
+  },
+  publisher: {
+    "@type": "Organization",
+    name: siteConfig.authorName,
+  },
+  mainEntityOfPage: articleUrl,
+};
+---
+
+<BaseLayout title={data.title} description={data.excerpt} image={absoluteImageUrl} type="article" structuredData={structuredData}>
+  <SiteHeader posts={allPosts} />
+  <main id="content" class="min-h-screen">
+    <article class:list={["mx-auto layout-wide px-5 pb-16 pt-10 lg:px-8", isUpdate && "release-article"]}>
+      <header class:list={[isUpdate ? "release-header" : "article-header"]}>
+        <nav class="flex flex-wrap items-center gap-2 text-[13px] font-semibold" aria-label="Breadcrumb">
+          <a href="/" class="text-muted-foreground transition-colors hover:text-accent">Home</a>
+          <span class="text-muted-foreground" aria-hidden="true">/</span>
+          <a href={categoryHref} class="text-accent transition-colors hover:text-accent-strong">{data.category}</a>
+        </nav>
+        {isUpdate && releaseVersion && (
+          <p class="mt-6 flex flex-wrap items-center gap-2">
+            <span class="version-chip">{releaseVersion}</span>
+            {data.release?.type && <span class="chip chip-neutral">{data.release.type} release</span>}
+          </p>
+        )}
+        <h1 class="mt-5 text-[clamp(2.15rem,5vw,3.75rem)] font-bold leading-[1.05] tracking-tight text-balance">
+          {isUpdate ? releaseTitle : data.title}
+        </h1>
+        <p class="mt-5 max-w-2xl text-pretty text-lg leading-8 text-muted-foreground md:text-xl">{data.excerpt}</p>
+        {isUpdate ? (
+          <p class="mt-5 text-[13px] text-muted-foreground">
+            <time datetime={data.date.toISOString()}>{formatDate(data.date, "long")}</time>
+            {data.updatedDate && (
+              <>
+                <span class="mx-1.5 text-accent" aria-hidden="true">&middot;</span>
+                Updated <time datetime={data.updatedDate.toISOString()}>{formatDate(data.updatedDate)}</time>
+              </>
+            )}
+          </p>
+        ) : (
+          <div class="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border pt-5">
+            <div class="flex items-center gap-3">
+              <div class="grid h-10 w-10 place-items-center rounded-full bg-primary font-bold text-primary-foreground" aria-hidden="true">
+                {data.author.name.charAt(0)}
+              </div>
+              <div class="text-sm">
+                <a href={authorHref} class="font-semibold transition-colors hover:text-accent">{data.author.name}</a>
+                <p class="text-xs text-muted-foreground">{data.author.role}</p>
+              </div>
+            </div>
+            <p class="text-[13px] text-muted-foreground">
+              <time datetime={data.date.toISOString()}>{formatDate(data.date, "long")}</time>
+              <span class="mx-1.5 text-accent" aria-hidden="true">&middot;</span>
+              {data.readMinutes} min read
+              {data.updatedDate && (
+                <>
+                  <span class="mx-1.5 text-accent" aria-hidden="true">&middot;</span>
+                  Updated <time datetime={data.updatedDate.toISOString()}>{formatDate(data.updatedDate)}</time>
+                </>
+              )}
+            </p>
+          </div>
+        )}
+      </header>
+
+      <div class:list={["mt-10 grid gap-12", isUpdate ? "lg:grid-cols-[minmax(0,44rem)_minmax(18rem,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_19rem]"]}>
+        <div class="min-w-0">
+          {showCoverInPost && (
+            <figure class:list={[isUpdate && "release-cover"]}>
+              <div class="h-[clamp(240px,38vw,460px)] overflow-hidden rounded-lg border border-border">
+                <Image
+                  src={data.cover.src}
+                  alt={data.cover.alt}
+                  widths={[640, 960, 1200, 1600, 2000]}
+                  sizes="(min-width: 1024px) 800px, calc(100vw - 2.5rem)"
+                  loading="eager"
+                  decoding="async"
+                  class="h-full w-full object-cover object-center"
+                />
+              </div>
+              <figcaption class="mt-2 text-xs text-muted-foreground">
+                Photo: <a href={data.cover.creditUrl} rel="noreferrer" class="underline decoration-border underline-offset-2 transition-colors hover:text-accent">{data.cover.creditName}</a>
+              </figcaption>
+            </figure>
+          )}
+
+          <div class:list={["article-body max-w-[var(--layout-reading)]", showCoverInPost ? "mt-8" : "mt-0", isUpdate && "release-body"]}>
+            <Content components={mdxComponents} />
+          </div>
+
+          <div
+            class:list={[
+              "mt-12 max-w-[var(--layout-reading)] pt-6 lg:hidden",
+              !isUpdate && "border-t border-border",
+            ]}
+            role="group"
+            aria-labelledby="article-share"
+          >
+            <p id="article-share" class="eyebrow mb-4">Share</p>
+            <div class="flex flex-wrap gap-2">
+              {shareLinks.map((link) => (
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="inline-grid h-11 w-11 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                  aria-label={`Share ${data.title} on ${link.label}`}
+                >
+                  <LocalIcon name={link.icon} className="h-4 w-4" />
+                </a>
+              ))}
+              <button
+                type="button"
+                class="inline-grid h-11 w-11 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                data-copy-link
+                data-copy-url={articleUrl}
+                aria-label={`Copy link to ${data.title}`}
+              >
+                <LocalIcon name="link-45deg" className="h-4 w-4" />
+              </button>
+            </div>
+            <p class="mt-3 min-h-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground" aria-live="polite" data-copy-status></p>
+          </div>
+        </div>
+
+        <aside class="hidden self-start lg:sticky lg:top-24 lg:block" aria-label="Article sidebar">
+          <div class="max-h-[calc(100vh-7rem)] space-y-8 overflow-y-auto pr-1">
+            {!isUpdate && tableOfContents.length > 0 && (
+              <nav class="sidebar-section" aria-labelledby="table-of-contents-heading" data-toc>
+                <p id="table-of-contents-heading" class="eyebrow mb-4">On this page</p>
+                <ol class="space-y-2 text-sm text-muted-foreground">
+                  {tableOfContents.map((heading) => (
+                    <li>
+                      <a
+                        href={`#${heading.slug}`}
+                        class:list={["toc-link block leading-snug transition-colors hover:text-accent", heading.depth === 3 && "pl-4"]}
+                      >
+                        {heading.text}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            )}
+
+            <div class="sidebar-section">
+              <p class="eyebrow mb-4">{isUpdate ? "Release details" : "Article details"}</p>
+              <dl class="space-y-3 text-sm">
+                {isUpdate && releaseVersion && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Version</dt>
+                    <dd class="font-mono font-semibold">{releaseVersion}</dd>
+                  </div>
+                )}
+                {isUpdate && data.release?.type && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Release type</dt>
+                    <dd class="font-semibold capitalize">{data.release.type}</dd>
+                  </div>
+                )}
+                <div class="flex items-baseline justify-between gap-3">
+                  <dt class="text-muted-foreground">{isUpdate ? "Released" : "Published"}</dt>
+                  <dd class="font-semibold">{formatDate(data.date)}</dd>
+                </div>
+                {!isUpdate && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Reading time</dt>
+                    <dd class="font-semibold">{data.readMinutes} min</dd>
+                  </div>
+                )}
+                {data.updatedDate && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Updated</dt>
+                    <dd class="font-semibold">{formatDate(data.updatedDate)}</dd>
+                  </div>
+                )}
+                {data.level && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Level</dt>
+                    <dd class="font-semibold">{data.level}</dd>
+                  </div>
+                )}
+                {!isUpdate && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Author</dt>
+                    <dd class="text-right">
+                      <a href={authorHref} class="font-semibold text-accent transition-colors hover:text-accent-strong">{data.author.name}</a>
+                    </dd>
+                  </div>
+                )}
+                {!isUpdate && (
+                  <div class="flex items-baseline justify-between gap-3">
+                    <dt class="text-muted-foreground">Category</dt>
+                    <dd>
+                      <a href={categoryHref} class="font-semibold text-accent transition-colors hover:text-accent-strong">{data.category}</a>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              {data.tags.length > 0 && (
+                <div class="mt-5 pt-4">
+                  <p class="eyebrow mb-3">Tags</p>
+                  <ul class="flex flex-wrap gap-2">
+                    {data.tags.map((tag) => (
+                      <li>
+                        <a
+                          href={`/tag/${tagSlug(tag)}/`}
+                          class="inline-flex rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                        >
+                          {tag}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div class="mt-5 pt-4" role="group" aria-labelledby="sidebar-share">
+                <p id="sidebar-share" class="eyebrow mb-3">Share</p>
+                <div class="flex flex-wrap gap-2">
+                  {shareLinks.map((link) => (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline-grid h-10 w-10 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                      aria-label={`Share ${data.title} on ${link.label}`}
+                    >
+                      <LocalIcon name={link.icon} className="h-4 w-4" />
+                    </a>
+                  ))}
+                  <button
+                    type="button"
+                    class="inline-grid h-10 w-10 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-accent hover:text-accent"
+                    data-copy-link
+                    data-copy-url={articleUrl}
+                    aria-label={`Copy link to ${data.title}`}
+                  >
+                    <LocalIcon name="link-45deg" className="h-4 w-4" />
+                  </button>
+                </div>
+                <p class="mt-2 min-h-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground" aria-live="polite" data-copy-status></p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </article>
+
+    <section class="mx-auto layout-wide px-5 pt-16 lg:px-8">
+      <div
+        class:list={[
+          "mb-8 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 pt-10",
+          !isUpdate && "border-t border-border",
+        ]}
+      >
+        <div>
+          <p class="eyebrow">Related</p>
+          <h2 class="mt-1 text-2xl font-bold tracking-tight md:text-[1.7rem]">{isUpdate ? "More updates" : "Keep reading"}</h2>
+        </div>
+        {!isUpdate && (
+          <a href="/posts/" class="pb-1 text-[13px] font-semibold text-accent transition-colors hover:text-accent-strong">All posts</a>
+        )}
+      </div>
+      <div class:list={[isUpdate ? "grid max-w-3xl pl-1" : "grid gap-5 md:grid-cols-3"]}>
+        {related.map((relatedPost) => <PostCard post={relatedPost} variant={isUpdate ? "changelog" : "medium"} />)}
+      </div>
+    </section>
+  </main>
+  <SiteFooter />
+
+  <script is:inline>
+    (() => {
+      const tocTargets = Array.from(document.querySelectorAll("[data-toc] a[href^='#']"))
+        .map((link) => ({ link, heading: document.getElementById(link.getAttribute("href").slice(1)) }))
+        .filter((target) => target.heading);
+
+      if (tocTargets.length === 0) return;
+
+      /* Must clear the headings' scroll-margin-top, or a clicked heading lands just short of active. */
+      const activationOffset = parseFloat(getComputedStyle(tocTargets[0].heading).scrollMarginTop || "0") + 16;
+      let activeLink = null;
+      let ticking = false;
+
+      const updateActiveLink = () => {
+        ticking = false;
+
+        let current = null;
+        for (const target of tocTargets) {
+          if (target.heading.getBoundingClientRect().top > activationOffset) break;
+          current = target.link;
+        }
+
+        if (current === activeLink) return;
+        activeLink?.removeAttribute("aria-current");
+        current?.setAttribute("aria-current", "true");
+        activeLink = current;
+      };
+
+      const requestUpdate = () => {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateActiveLink);
+      };
+
+      updateActiveLink();
+      window.addEventListener("scroll", requestUpdate, { passive: true });
+      window.addEventListener("resize", requestUpdate, { passive: true });
+    })();
+
+    document.querySelectorAll("[data-copy-link]").forEach((copyLinkButton) => {
+      const copyLinkStatus = copyLinkButton.parentElement?.parentElement?.querySelector("[data-copy-status]");
+
+      copyLinkButton.addEventListener("click", async () => {
+        const url = copyLinkButton.getAttribute("data-copy-url");
+        if (!url) return;
+
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+
+          await navigator.clipboard.writeText(url);
+
+          if (copyLinkStatus) copyLinkStatus.textContent = "Link copied";
+        } catch {
+          if (copyLinkStatus) copyLinkStatus.textContent = "Copy failed";
+        }
+      });
+    });
+
+    document.querySelectorAll(".article-body pre").forEach((pre, index) => {
+      if (pre.closest(".code-copy-frame")) return;
+
+      const code = pre.querySelector("code");
+      const wrapper = document.createElement("div");
+      const button = document.createElement("button");
+      const status = document.createElement("span");
+      const labelId = `code-copy-${index}`;
+
+      wrapper.className = "code-copy-frame";
+      button.type = "button";
+      button.className = "code-copy-button";
+      button.setAttribute("aria-describedby", labelId);
+      button.textContent = "Copy";
+      status.id = labelId;
+      status.className = "sr-only";
+      status.setAttribute("aria-live", "polite");
+
+      pre.parentNode?.insertBefore(wrapper, pre);
+      wrapper.append(pre, button, status);
+
+      button.addEventListener("click", async () => {
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+
+          await navigator.clipboard.writeText(code?.textContent ?? pre.textContent ?? "");
+          button.textContent = "Copied";
+          status.textContent = "Code copied";
+          window.setTimeout(() => {
+            button.textContent = "Copy";
+          }, 1800);
+        } catch {
+          button.textContent = "Failed";
+          status.textContent = "Copy failed";
+          window.setTimeout(() => {
+            button.textContent = "Copy";
+          }, 1800);
+        }
+      });
+    });
+  </script>
+
+  <style>
+    .toc-link {
+      position: relative;
+    }
+
+    /* Sits on the .sidebar-section left border; the indent lives on the link so depth-3 items share the offset. */
+    .toc-link::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(-1rem - 1.5px);
+      width: 2px;
+      background: var(--accent);
+      content: "";
+      opacity: 0;
+      transition: opacity 160ms ease;
+    }
+
+    .toc-link[aria-current="true"]::before {
+      opacity: 1;
+    }
+
+    .article-body :global(p) {
+      margin: 1.25rem 0;
+      color: color-mix(in srgb, var(--foreground) 90%, transparent);
+      font-size: 1.0625rem;
+      line-height: 1.8;
+      text-wrap: pretty;
+    }
+
+    .article-body :global(ul),
+    .article-body :global(ol) {
+      margin: 1.25rem 0;
+      padding-left: 1.4rem;
+      color: color-mix(in srgb, var(--foreground) 90%, transparent);
+      font-size: 1.0625rem;
+      line-height: 1.8;
+    }
+
+    .article-body :global(ul) {
+      list-style: disc;
+    }
+
+    .article-body :global(ol) {
+      list-style: decimal;
+    }
+
+    .article-body :global(li) {
+      margin: 0.4rem 0;
+    }
+
+    .article-body :global(li)::marker {
+      color: var(--accent);
+    }
+
+    .article-body :global(code) {
+      background: var(--muted);
+      padding: 0.15rem 0.4rem;
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      border-radius: var(--radius-xs);
+    }
+
+    .article-body :global(pre) {
+      margin: 1.75rem 0;
+    }
+
+    .article-body :global(.code-copy-frame) {
+      position: relative;
+      margin: 1.75rem 0;
+    }
+
+    .article-body :global(.code-copy-frame pre) {
+      margin: 0;
+      padding-top: 3rem;
+    }
+
+    .article-body :global(.code-copy-button) {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      padding: 0.3rem 0.55rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: var(--radius-xs);
+      transition:
+        border-color 160ms ease,
+        color 160ms ease;
+    }
+
+    .article-body :global(.code-copy-button:hover),
+    .article-body :global(.code-copy-button:focus-visible) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .article-body :global(pre code) {
+      background: transparent;
+      padding: 0;
+      font-size: 0.875rem;
+      line-height: 1.7;
+    }
+
+    .article-body :global(h2) {
+      margin: 3.25rem 0 1.25rem;
+      scroll-margin-top: 6rem;
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 3vw, 1.9rem);
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+    }
+
+    .article-body :global(h3) {
+      margin: 2rem 0 0.75rem;
+      scroll-margin-top: 6rem;
+      font-family: var(--font-display);
+      font-size: clamp(1.15rem, 2vw, 1.35rem);
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .article-body :global(blockquote) {
+      margin: 2.25rem 0;
+      border-left: 3px solid var(--accent);
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+        var(--background-wash);
+      padding: 1rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.6;
+      text-wrap: pretty;
+    }
+
+    .article-body :global(blockquote p) {
+      margin: 0;
+      font-size: inherit;
+    }
+
+    .article-body :global(blockquote strong:first-child) {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .article-body :global(a) {
+      color: var(--foreground);
+      text-decoration: underline;
+      text-decoration-color: var(--accent);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 0.2em;
+    }
+
+    .sidebar-section {
+      border-left: 1px solid var(--border);
+      padding-left: 1rem;
+    }
+
+    .article-header {
+      max-width: var(--layout-heading);
+    }
+
+    .release-header {
+      max-width: 56rem;
+      border-left: 4px solid var(--accent);
+      padding-left: clamp(1rem, 3vw, 2rem);
+    }
+
+    .release-cover :global(div) {
+      height: clamp(180px, 24vw, 300px);
+      background: var(--background-wash);
+    }
+
+    .release-body :global(h2) {
+      margin-top: 2.5rem;
+      padding-bottom: 0.65rem;
+      font-size: clamp(1.25rem, 2.3vw, 1.55rem);
+    }
+
+    .release-body :global(ul) {
+      list-style: square;
+    }
+  </style>
+</BaseLayout>

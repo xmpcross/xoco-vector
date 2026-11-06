@@ -1,0 +1,48 @@
+---
+import { getCollection } from "astro:content";
+import SiteFooter from "@/components/SiteFooter.astro";
+import SiteHeader from "@/components/SiteHeader.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { siteConfig } from "@/config/site";
+import { getAllAuthors, visiblePosts } from "@/lib/posts";
+
+const allPosts = visiblePosts(await getCollection("posts"));
+const authors = getAllAuthors(allPosts);
+---
+
+<BaseLayout title="Authors" description={`Browse ${siteConfig.name} authors and their latest articles.`}>
+  <SiteHeader posts={allPosts} />
+  <main id="content" class="min-h-screen">
+    <section class="mx-auto layout-wide px-5 pt-12 lg:px-8">
+      <div class="border-b border-border pb-6">
+        <p class="eyebrow">Authors</p>
+        <h1 class="mt-2 text-[clamp(2.2rem,6vw,4rem)] font-bold leading-none tracking-tight">{siteConfig.name} authors</h1>
+        <p class="mt-4 max-w-2xl text-muted-foreground">Browse contributors across engineering, AI, cloud, security, design systems, and product updates.</p>
+      </div>
+    </section>
+
+    <section class="mx-auto layout-wide px-5 pt-10 lg:px-8">
+      <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          authors.map((author) => (
+            <a href={`/author/${author.slug}/`} class="panel card-lift group block p-5">
+              <div class="flex items-center gap-4">
+                <div class="grid h-12 w-12 place-items-center rounded-full bg-primary font-bold text-primary-foreground" aria-hidden="true">
+                  {author.name.charAt(0)}
+                </div>
+                <div>
+                  <h2 class="headline-accent text-lg font-bold tracking-tight transition-colors">{author.name}</h2>
+                  <p class="mt-1 text-sm text-muted-foreground">{author.role}</p>
+                </div>
+              </div>
+              <p class="mt-4 border-t border-border pt-3 text-[12px] font-semibold text-muted-foreground">
+                {author.posts.length} {author.posts.length === 1 ? "post" : "posts"}
+              </p>
+            </a>
+          ))
+        }
+      </div>
+    </section>
+  </main>
+  <SiteFooter />
+</BaseLayout>
